@@ -43,6 +43,7 @@ casselman,45.3000,-75.0833
 centre wellington,43.7000,-80.3667
 champlain,46.4500,-72.3500
 chapleau,47.8333,-83.4000
+charlottetown,46.2403,-63.1347
 chatham,42.4229,-82.1324
 chatsworth,44.3800,-80.8700
 claremont,43.9741,-79.1316
@@ -54,10 +55,15 @@ cobourg,43.9667,-78.1667
 cochrane,49.0667,-81.0167
 collingwood,44.5000,-80.2167
 cornwall,46.2407,-63.2009
+cumberland,49.6206,-125.0261
 deep river,46.1000,-77.4917
+delta,49.0847,-123.0586
 deseronto,44.2000,-77.0500
+dorchester,45.9016,-64.5161
 douro-dummer,44.4500,-78.1000
 dryden,49.7833,-92.8333
+dundas,46.3155,-64.6947
+durham,47.7631,-66.0849
 east garafraxa,43.8500,-80.2500
 east gwillimbury,44.1333,-79.4167
 edwardsburgh/cardinal,44.8333,-75.5000
@@ -83,23 +89,28 @@ guelph,43.5500,-80.2500
 guelph/eramosa,43.6300,-80.2200
 halton hills,43.6300,-79.9500
 hamilton,43.2567,-79.8692
+hampton,45.5251491193206,-65.8425461391407
 hanover,44.1500,-81.0333
+havelock,45.9523,-65.3885
 hawkesbury,45.6000,-74.6000
 hearst,49.6869,-83.6544
 hensall,43.4345,-81.5040
 hillsburgh,43.7914,-80.1354
 horton,45.5000,-76.6667
+hudson,45.4500,-74.1500
 huntsville,45.3333,-79.2167
 huron east,43.6300,-81.2800
 ignace,49.4167,-91.6667
 ingersoll,43.0392,-80.8836
 innisfil,44.3000,-79.5833
 iroquois falls,48.7667,-80.6667
+jasper,52.9013,-118.1312
 kapuskasing,49.4167,-82.4333
 kawartha lakes,44.3500,-78.7500
 kenora,49.7667,-94.4833
 kincardine,44.1667,-81.6333
 king,44.0463,-79.6044
+kingston,45.4663,-66.0217
 kingsville,42.1000,-82.7167
 kirkland lake,48.1500,-80.0333
 kitchener,43.4186,-80.4728
@@ -111,8 +122,10 @@ leamington,42.0667,-82.5833
 lincoln,45.8716,-66.5437
 london,42.9836,-81.2497
 loyalist,44.2500,-76.7500
+lunenburg,44.3833,-64.3167
 madoc,44.5833,-77.5167
 magnetawan,45.6667,-79.6333
+maidstone,53.0920,-109.2940
 manitouwadge,49.1333,-85.8333
 mapleton,43.7358,-80.6681
 marathon,48.7500,-86.3667
@@ -128,12 +141,14 @@ midland,44.7500,-79.8833
 milton,43.5083,-79.8833
 mississauga,43.6000,-79.6500
 mississippi mills,45.2167,-76.2000
+mitchell,49.5363,-96.7634
 mono,44.0167,-80.0667
 montague,46.1652,-62.6500
 moonbeam,49.3500,-82.1500
 moosonee,51.2722,-80.6431
 mulmur,44.1917,-80.1083
 new tecumseth,44.0833,-79.7500
+newcastle,47.1725,-65.5551
 newmarket,44.0500,-79.4667
 niagara falls,43.0600,-79.1067
 niagara-on-the-lake,43.2553,-79.0717
@@ -151,6 +166,7 @@ oro-medonte,44.5667,-79.5833
 oshawa,43.9000,-78.8500
 ottawa,45.4247,-75.6950
 owen sound,44.5667,-80.9333
+oxford,45.7306,-63.8733
 parry sound,45.3333,-80.0333
 pelham,43.0333,-79.3333
 pembroke,45.8167,-77.1000
@@ -164,6 +180,7 @@ pickering,43.8354,-79.0890
 plantagenet,45.5321,-74.9956
 point edward,42.9931,-82.4083
 port colborne,42.8833,-79.2500
+port coquitlam,49.2625,-122.7811
 port hope,43.9500,-78.3000
 powassan,46.0825,-79.3619
 prescott,44.7167,-75.5167
@@ -173,14 +190,17 @@ quinte west,44.1833,-77.5667
 ramara,44.6333,-79.2167
 red lake,51.0333,-93.8333
 renfrew,45.4717,-76.6831
+richmond,46.0776,-67.7248
 richmond hill,43.8667,-79.4333
 rideau lakes,44.6667,-76.2167
+rockwood,50.2856,-97.2869
 russell,45.2569,-75.3583
 sarnia,42.9994,-82.3089
 sault ste. marie,46.5333,-84.3500
 schreiber,48.8167,-87.2667
 scugog,44.0900,-78.9360
 seguin,45.2882,-79.8116
+selkirk,50.1436,-96.8839
 selwyn,44.4167,-78.3333
 severn,44.7500,-79.5167
 shelburne,43.7633,-65.3236
@@ -192,8 +212,10 @@ south bruce peninsula,44.7333,-81.2000
 south frontenac,44.5081,-76.4939
 south glengarry,45.2000,-74.5833
 south river,45.8417,-79.3750
+southampton,46.0789,-67.3124
 southgate,44.1000,-80.5833
 southwold,42.7500,-81.3167
+springfield,45.7005,-65.8079
 springwater,44.4333,-79.7333
 st. catharines,43.1833,-79.2333
 st. clair,42.7833,-82.3500
@@ -203,6 +225,7 @@ st. thomas,42.7750,-81.1833
 stouffville,43.9667,-79.2500
 stratford,46.2167,-63.0893
 sudbury,46.4900,-81.0100
+sutton,45.1037248954726,-72.6180936643302
 tara,44.4793,-81.1445
 tecumseh,42.2431,-82.9256
 temiskaming shores,47.5167,-79.6833
@@ -218,9 +241,11 @@ tiny,44.6833,-79.9500
 toronto,43.7417,-79.3733
 trent hills,44.3142,-77.8514
 trent lakes,44.6667,-78.4333
+trenton,45.6193,-62.6332
 tweed,44.6000,-77.3333
 unknown,46.2722647,-80.3159766
 uxbridge,44.1167,-79.1333
+vancouver,49.2500,-123.1000
 vaughan,43.8333,-79.5000
 wainfleet,42.9250,-79.3750
 warwick,43.0000,-81.8917
