@@ -7,30 +7,31 @@ import requests
 RESOURCE_ID = "86e75d11-1c2c-4cd9-9b0d-9fccec302b30"
 API_URL = "https://data.ontario.ca/api/3/action/datastore_search"
 DATA_PATH = "data/ltb_orders.json"
-CITIES_CSV_PATH = "data/canadacities.csv"
+CITIES_CSV_PATH = "data/city_coordinates_cache.csv"
 LIMIT = 10000
 
 def load_ontario_cities():
-    """Loads Ontario municipalities from cancities.csv into a lookup dictionary."""
+    """Loads Ontario municipalities from city geocode cache into a lookup dictionary."""
     city_map = {}
     if os.path.exists(CITIES_CSV_PATH):
         with open(CITIES_CSV_PATH, mode='r', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row in reader:
-                if len(row) > 5:
+                # Fixed: Use >= 3 because csv rows have 3 columns (city, latitude, longitude)
+                if len(row) >= 2:
                     city_name = row[0].strip()
-                    province = row[2].strip().upper()
-                    if province == "ON":
-                        try:
-                            lat = float(row[4])
-                            lng = float(row[5])
+                    try:
+                        lat = float(row[1])
+                        lng = float(row[2])
+                        if lat != 0.0 and lng != 0.0:
                             city_map[city_name.upper()] = {
                                 "name": city_name,
                                 "lat": lat,
                                 "lng": lng
                             }
-                        except ValueError:
-                            continue
+                    except ValueError:
+                        continue    
+    print(f"Loaded {len(city_map)} valid municipalities from cache.")
     return city_map
 
 # Load once globally
@@ -39,37 +40,70 @@ ONTARIO_CITIES = load_ontario_cities()
 SORTED_CITY_NAMES = sorted(ONTARIO_CITIES.keys(), key=len, reverse=True)
 
 def match_city_from_csv(address_str):
-    """Scans the address string for a valid Ontario city name from cancities.csv."""
+    """Extremely fast Ontario city matcher using C-speed string guards."""
     if not address_str or address_str == "N/A":
         return "Unknown", 0.0, 0.0
     
     addr_upper = address_str.upper()
+    
+    # 1. Fast path: Use C-speed 'in' check first. Only run regex if the substring matches.
     for city_key in SORTED_CITY_NAMES:
-        pattern = r'\b' + re.escape(city_key) + r'\b'
-        if re.search(pattern, addr_upper):
-            match_data = ONTARIO_CITIES[city_key]
-            return match_data["name"], match_data["lat"], match_data["lng"]
+        if city_key in addr_upper:
+            pattern = r'\b' + re.escape(city_key) + r'\b'
+            if re.search(pattern, addr_upper):
+                match_data = ONTARIO_CITIES[city_key]
+                return match_data["name"], match_data["lat"], match_data["lng"]
             
+    # 2. Fallback: Parse out comma-separated chunks (O(1) dictionary lookups)
+    parts = [p.strip() for p in address_str.split(',')]
+    if len(parts) >= 2:
+        for part in reversed(parts[:-1]):
+            clean_part = re.sub(r'\b(ON|Ontario|Canada|[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d)\b', '', part, flags=re.IGNORECASE).strip().upper()
+            if clean_part in ONTARIO_CITIES:
+                match_data = ONTARIO_CITIES[clean_part]
+                return match_data["name"], match_data["lat"], match_data["lng"]
+
     return "Unknown", 0.0, 0.0
 
 def fetch_all_ltb_records():
     all_records = []
     offset = 0
     print("Fetching current LTB dataset from Ontario Open Data...")
+    
+    # Government APIs often require a user-agent to prevent blocking default scripts
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) LTBDataHub/1.0 (Open Source Civic Project)"
+    }
+    
     while True:
         params = {"resource_id": RESOURCE_ID, "limit": LIMIT, "offset": offset}
         try:
-            res = requests.get(API_URL, params=params, timeout=30).json()
-            records = res.get("result", {}).get("records", [])
+            # (connect timeout, read timeout) prevents silent infinite hanging
+            res = requests.get(API_URL, params=params, headers=headers, timeout=(10, 45))
+            res.raise_for_status()
+            
+            data = res.json()
+            records = data.get("result", {}).get("records", [])
             if not records:
                 break
+                
             all_records.extend(records)
+            print(f"Fetched {len(all_records)} records so far...")
+            
             offset += LIMIT
             if len(records) < LIMIT:
                 break
-        except Exception as e:
-            print(f"Error fetching data: {e}")
+                
+        except requests.exceptions.Timeout:
+            print("[Error] Connection or read timed out while communicating with data.ontario.ca.")
             break
+        except requests.exceptions.RequestException as e:
+            print(f"[Error] Network request failed: {e}")
+            break
+        except Exception as e:
+            print(f"[Error] Unexpected error parsing response: {e}")
+            break
+            
     return all_records
 
 def extract_url(hyperlink_str):
@@ -82,7 +116,13 @@ def extract_url(hyperlink_str):
 
 def transform_records(records):
     cleaned = []
-    for r in records:
+    total = len(records)
+    print(f"Transforming and geocoding {total} records...")
+    
+    for i, r in enumerate(records):
+        if i > 0 and i % 10000 == 0:
+            print(f"Processed {i}/{total} records...")
+            
         unit_addr = r.get("Rental Unit Address/Adresse du logement locatif")
         complex_addr = r.get("Complex Address/Adresse du complexe")
         address = unit_addr or complex_addr or "N/A"
@@ -126,11 +166,12 @@ def transform_records(records):
             "lat": lat,
             "lng": lng,
         })
+        
+    print("Transformation complete.")
     return cleaned
 
 if __name__ == "__main__":
     os.makedirs("data", exist_ok=True)
-    print(f"Loaded {len(ONTARIO_CITIES)} Ontario municipalities from cancities.csv.")
 
     existing_map = {}
     if os.path.exists(DATA_PATH):
@@ -144,15 +185,20 @@ if __name__ == "__main__":
     raw_data = fetch_all_ltb_records()
     clean_data = transform_records(raw_data)
 
-    # Upsert while preserving or updating coordinates from the CSV dictionary
+    # Upsert while preserving or updating coordinates
     mapped_count = 0
+    preserved_count = 0
     for item in clean_data:
         record_id = item["id"]
-        # If city was matched successfully from CSV, use those coords; otherwise check existing map
+        
+        # If fresh parse failed to find a city, check if we already have it in the existing map
         if item["city"] == "Unknown" and record_id in existing_map:
-            item["lat"] = existing_map[record_id].get("lat", 0.0)
-            item["lng"] = existing_map[record_id].get("lng", 0.0)
-            item["city"] = existing_map[record_id].get("city", "Unknown")
+            old_item = existing_map[record_id]
+            if old_item.get("city", "Unknown") != "Unknown":
+                item["city"] = old_item["city"]
+                item["lat"] = old_item.get("lat", 0.0)
+                item["lng"] = old_item.get("lng", 0.0)
+                preserved_count += 1
         elif item["city"] != "Unknown":
             mapped_count += 1
         
@@ -162,4 +208,4 @@ if __name__ == "__main__":
     with open(DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(combined_data, f, indent=2, ensure_ascii=False)
     
-    print(f"Sync complete! Mapped {mapped_count} records using cancities.csv. Total repository size: {len(combined_data)} orders.")
+    print(f"Sync complete! Mapped {mapped_count} via cache, preserved {preserved_count} from history. Total repository size: {len(combined_data)} orders.")
