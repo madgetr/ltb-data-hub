@@ -34,3 +34,8 @@ jobs:
           git config --global user.email "action@github.com"
           git add data/ltb_orders.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "chore: automated monthly LTB data sync and backfill [skip ci]" && git push)
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './frontend'
