@@ -1,691 +1,695 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ontario LTB Orders Intelligence Explorer</title>
+    <title>Ontario LTB Intelligence & Tenant Screening Hub</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        slate: {
-                            850: '#1e293b',
-                            900: '#0f172a',
-                            950: '#020617',
-                        }
-                    }
-                }
+          darkMode: 'class',
+          theme: {
+            extend: {
+              colors: {
+                slate: { 850: '#171e2e', 900: '#0f172a', 950: '#090d16' },
+                indigo: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' }
+              }
             }
+          }
         }
     </script>
-    <!-- Inter Font & FontAwesome Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #090d16; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+        .leaflet-container { background: #090d16 !important; }
     </style>
 </head>
-
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+<body class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
 
     <!-- Navigation Header -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <header class="border-b border-slate-800 bg-slate-900/60 backdrop-blur-md sticky top-0 z-30">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                    <i class="fa-solid fa-scale-balanced text-white text-lg"></i>
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold shadow-lg shadow-indigo-500/10">
+                    <i class="fa-solid fa-building-shield text-lg"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
-                        Ontario LTB Explorer
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Public Data</span>
-                    </h1>
-                    <p class="text-xs text-slate-400">Tribunals Ontario Open Data Portal</p>
+                    <h1 class="font-bold text-sm sm:text-base text-white tracking-wide">Ontario LTB Intelligence Hub</h1>
+                    <p class="text-xs text-slate-400">Landlord & Tenant Board Public Orders & Screening</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3">
-                <div id="data-status" class="text-xs text-emerald-400 bg-emerald-950/50 border border-emerald-900/50 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span id="record-count-badge">Loading dataset...</span>
-                </div>
+            
+            <!-- View Mode Tabs -->
+            <div class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button id="tabOrders" onclick="switchView('orders')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-table-list"></i> Orders Explorer
+                </button>
+                <button id="tabTenants" onclick="switchView('tenants')" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
+                    <i class="fa-solid fa-user-check"></i> Tenant Batch Screening
+                </button>
+            </div>
+
+            <!-- Toolbar Actions -->
+            <div class="flex items-center gap-3">
+                <button type="button" onclick="openMapModal()" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 font-medium rounded-xl border border-slate-700 flex items-center gap-2 transition text-xs shadow-sm">
+                    <i class="fa-solid fa-map-location-dot"></i>
+                    <span class="hidden sm:inline">Radius Map Search</span>
+                </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Container -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full space-y-6">
 
-        <!-- Metrics Overview Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-                <div class="flex justify-between items-start">
+        <!-- ================= VIEW 1: ORDERS EXPLORER ================= -->
+        <div id="viewOrders" class="space-y-6">
+            <!-- Stats -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
                     <div>
                         <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Total Orders Indexed</p>
-                        <h3 id="stat-total" class="text-2xl font-bold text-white mt-1">0</h3>
+                        <h3 id="statTotal" class="text-2xl font-extrabold text-white mt-1">0</h3>
                     </div>
-                    <div class="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                        <i class="fa-solid fa-file-lines"></i>
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-database"></i>
                     </div>
                 </div>
-                <div class="mt-3 flex items-center text-xs text-slate-400">
-                    <span class="text-emerald-400 font-medium mr-1.5"><i class="fa-solid fa-arrow-trend-up"></i> Live</span> Active database dump
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Filtered Results</p>
+                        <h3 id="statFiltered" class="text-2xl font-extrabold text-indigo-400 mt-1">0</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-filter"></i>
+                    </div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-sm flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Geocoded Orders</p>
+                        <h3 id="statGeocoded" class="text-2xl font-extrabold text-emerald-400 mt-1">0</h3>
+                    </div>
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
                 </div>
             </div>
 
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Unique Addresses</p>
-                        <h3 id="stat-addresses" class="text-2xl font-bold text-white mt-1">0</h3>
+            <!-- Toolbar & Checkboxes -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-sm space-y-4">
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div class="relative w-full md:w-96">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                        <input type="text" id="searchInput" oninput="applyFilters()" placeholder="Search file number, address, tenant or landlord..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
                     </div>
-                    <div class="p-2.5 rounded-xl bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                        <i class="fa-solid fa-building"></i>
+
+                    <div id="radiusBadge" class="hidden items-center gap-2 px-3 py-2 bg-indigo-600/10 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs">
+                        <i class="fa-solid fa-circle-dot text-indigo-400 animate-pulse"></i>
+                        <span>Radius Filter Active</span>
+                        <button onclick="clearRadiusFilter()" class="ml-2 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                 </div>
-                <div class="mt-3 flex items-center text-xs text-slate-400">
-                    Properties with tribunal cases
+
+                <!-- Application Type Checkboxes -->
+                <div class="pt-3 border-t border-slate-800/80">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-tags text-indigo-400"></i> Application Types
+                        </span>
+                        <div class="flex items-center gap-3">
+                            <button onclick="toggleAllAppTypes(true)" class="text-xs text-indigo-400 hover:underline">Select All</button>
+                            <span class="text-slate-600">|</span>
+                            <button onclick="toggleAllAppTypes(false)" class="text-xs text-slate-400 hover:underline">Clear</button>
+                        </div>
+                    </div>
+                    <div id="appTypeCheckboxes" class="flex flex-wrap gap-2 max-h-28 overflow-y-auto p-1"></div>
                 </div>
             </div>
 
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Unique Landlords</p>
-                        <h3 id="stat-landlords" class="text-2xl font-bold text-white mt-1">0</h3>
-                    </div>
-                    <div class="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                        <i class="fa-solid fa-briefcase"></i>
-                    </div>
+            <!-- Table -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="bg-slate-950/70 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('fileNumber')">File Number <span id="sort-fileNumber" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('address')">Address & City <span id="sort-address" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('appType')">App Type <span id="sort-appType" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('landlordName')">Landlord <span id="sort-landlordName" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('tenantName')">Tenant <span id="sort-tenantName" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('orderDate')">Order Date <span id="sort-orderDate" class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 text-center">Document</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800/60 text-slate-300"></tbody>
+                    </table>
                 </div>
-                <div class="mt-3 flex items-center text-xs text-slate-400">
-                    Housing providers & corporations
-                </div>
-            </div>
-
-            <div class="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 shadow-sm relative overflow-hidden">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Latest Order Date</p>
-                        <h3 id="stat-date" class="text-lg font-bold text-white mt-1">-</h3>
+                <div class="bg-slate-950/40 border-t border-slate-800 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400">
+                    <div id="paginationInfo">Showing 0 to 0 of 0 entries</div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="prevPage()" id="prevBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg transition font-medium">Previous</button>
+                        <span id="pageIndicator" class="px-3 py-1.5 font-mono text-indigo-400">Page 1 of 1</span>
+                        <button onclick="nextPage()" id="nextBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-lg transition font-medium">Next</button>
                     </div>
-                    <div class="p-2.5 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
-                        <i class="fa-solid fa-calendar-days"></i>
-                    </div>
-                </div>
-                <div class="mt-3 flex items-center text-xs text-slate-400">
-                    Most recent adjudication
                 </div>
             </div>
         </div>
 
-        <!-- Search and Filter Toolbar -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
-                <!-- Search Input -->
-                <div class="md:col-span-8 relative">
-                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                    </span>
-                    <input type="text" id="searchInput"
-                        placeholder="Search by address, file number (e.g., LTB-C-004323), tenant name, or landlord..."
-                        class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition" />
-                </div>
 
-                <!-- Application Type Filter Dropdown (Checkbox Style) -->
-                <div class="md:col-span-3 relative inline-block text-left" id="appTypeDropdownContainer">
-                    <button type="button" id="appTypeDropdownBtn" onclick="toggleAppTypeDropdown()"
-                        class="w-full h-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-3 text-left text-sm font-medium text-slate-200 shadow-sm flex justify-between items-center hover:border-slate-700 focus:outline-none focus:border-indigo-500">
-                        <span id="appTypeDropdownLabel" class="truncate">All Types Selected</span>
-                        <i class="fa-solid fa-chevron-down text-xs text-slate-400 ml-2"></i>
-                    </button>
-
-                    <!-- Dropdown Panel -->
-                    <div id="appTypeMenu"
-                        class="hidden absolute z-30 mt-1 w-full bg-slate-900 rounded-xl shadow-xl border border-slate-800 max-h-60 overflow-y-auto p-3">
-                        <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-xs text-slate-400">
-                            <button type="button" onclick="selectAllTypes(true)" class="text-indigo-400 hover:underline">Select All</button>
-                            <button type="button" onclick="selectAllTypes(false)" class="text-slate-400 hover:underline">Clear All</button>
-                        </div>
-                        <div id="appTypeCheckboxList" class="space-y-1">
-                            <!-- Dynamically populated checkboxes -->
-                        </div>
+        <!-- ================= VIEW 2: TENANT AGGREGATION & SCREENING ================= -->
+        <div id="viewTenants" class="hidden space-y-6">
+            <!-- Screening Input Card -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-users-viewfinder text-indigo-400"></i> Batch Tenant Screening & Aggregation
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">
+                            Enter multiple tenant names (one per line). Duplicates and blank lines will be automatically cleaned out.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="cleanAndFormatInput()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs flex items-center gap-1.5 transition">
+                            <i class="fa-solid fa-broom text-slate-400"></i> Clean Box
+                        </button>
+                        <button onclick="runTenantScreening()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition">
+                            <i class="fa-solid fa-magnifying-glass font-bold"></i> Screen Applicants
+                        </button>
                     </div>
                 </div>
+                <textarea id="tenantBatchInput" rows="4" placeholder="Enter applicant names (e.g. John Smith, Jane Doe)..." class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono"></textarea>
+            </div>
 
-                <!-- Clear Filters Button -->
-                <div class="md:col-span-1">
-                    <button id="resetBtn" title="Reset Filters"
-                        class="w-full h-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl border border-slate-700 flex items-center justify-center transition">
-                        <i class="fa-solid fa-rotate-right"></i>
-                    </button>
+            <!-- Aggregate Status Overview Bar -->
+            <div id="screeningMetrics" class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase">Screened Applicants</p>
+                        <h4 id="metricScreenedCount" class="text-xl font-bold text-white mt-0.5">0</h4>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 text-slate-300 flex items-center justify-center"><i class="fa-solid fa-user-group"></i></div>
+                </div>
+                <div class="bg-emerald-950/20 border border-emerald-800/40 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-medium text-emerald-400 uppercase">Clear (No LTB Records)</p>
+                        <h4 id="metricClearCount" class="text-xl font-bold text-emerald-300 mt-0.5">0</h4>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center"><i class="fa-solid fa-circle-check"></i></div>
+                </div>
+                <div class="bg-amber-950/20 border border-amber-800/40 rounded-2xl p-4 flex items-center justify-between">
+                    <div>
+                        <p class="text-[11px] font-medium text-amber-400 uppercase">Flagged (Records Found)</p>
+                        <h4 id="metricFlaggedCount" class="text-xl font-bold text-amber-300 mt-0.5">0</h4>
+                    </div>
+                    <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center"><i class="fa-solid fa-triangle-exclamation"></i></div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between text-xs text-slate-400 px-1 pt-1 border-t border-slate-800/80">
-                <span id="match-count">Showing 0 matching records</span>
-                <div class="flex items-center gap-2">
-                    <span>Rows per page:</span>
-                    <select id="pageSizeSelect"
-                        class="bg-slate-950 border border-slate-800 rounded px-2 py-1 text-slate-300 focus:outline-none">
-                        <option value="25">25</option>
-                        <option value="50" selected>50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
-            </div>
-        </div>
-
-        <!-- Data Table Container -->
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col">
-            <div class="overflow-x-auto min-h-[400px]">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-slate-800 bg-slate-950/50 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('orderDate')">
-                                Date <span id="sort-orderDate" class="text-indigo-400">▼</span>
-                            </th>
-                            <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('fileNumber')">
-                                File Number <span id="sort-fileNumber" class="text-indigo-400"></span>
-                            </th>
-                            <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('address')">
-                                Property Address <span id="sort-address" class="text-indigo-400"></span>
-                            </th>
-                            <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('landlordName')">
-                                Parties (Landlord vs Tenant) <span id="sort-landlordName" class="text-indigo-400"></span>
-                            </th>
-                            <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none" onclick="handleSort('appType')">
-                                Type <span id="sort-appType" class="text-indigo-400"></span>
-                            </th>
-                            <th class="py-3.5 px-4 text-right">Official PDF</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tableBody" class="divide-y divide-slate-800/60 text-sm">
-                        <tr>
-                            <td colspan="6" class="text-center py-16 text-slate-500">
-                                <div class="flex flex-col items-center justify-center space-y-3">
-                                    <div class="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-indigo-400 text-xl animate-bounce">
-                                        <i class="fa-solid fa-database"></i>
-                                    </div>
-                                    <p class="font-medium text-slate-300">No LTB records loaded yet.</p>
-                                    <p class="text-xs text-slate-500 max-w-sm">Place your <code class="text-indigo-400 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800">ltb_orders.json</code> file in the data folder or click <strong>"Load JSON File"</strong> above.</p>
-                                </div>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination Footer -->
-            <div class="bg-slate-950/60 border-t border-slate-800 px-6 py-4 flex items-center justify-between">
-                <span id="pagination-info" class="text-xs text-slate-400">Page 1 of 1</span>
-                <div class="flex items-center space-x-2">
-                    <button id="prevBtn"
-                        class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
-                        <i class="fa-solid fa-chevron-left mr-1"></i> Previous
-                    </button>
-                    <button id="nextBtn"
-                        class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
-                        Next <i class="fa-solid fa-chevron-right ml-1"></i>
-                    </button>
+            <!-- Aggregated Results List -->
+            <div id="tenantAggregateContainer" class="space-y-4">
+                <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 italic text-xs">
+                    Paste applicant names into the box above and click "Screen Applicants" to generate aggregated results.
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-slate-800 bg-slate-900/40 py-6 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
-            Ontario Landlord and Tenant Board (LTB) Public Data Explorer &bull; Built with Tailwind CSS & Vanilla JavaScript
+    <!-- Radius Map Modal -->
+    <div id="mapModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-indigo-400"></i> Spatial Radius Search
+                </h3>
+                <button onclick="closeMapModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="flex flex-wrap items-center gap-4 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300">
+                <button onclick="panToUserLocation()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg flex items-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-location-crosshairs"></i> Use My Location
+                </button>
+                <label class="flex items-center gap-2">
+                    <span>Radius:</span>
+                    <input type="range" id="radiusSlider" min="5" max="250" step="5" value="50" oninput="updateRadius(this.value)" class="accent-indigo-500">
+                    <strong id="radiusLabel" class="text-indigo-400 font-mono">50 km</strong>
+                </label>
+                <button onclick="clearRadiusFilter()" class="ml-auto px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 font-medium">Reset Radius</button>
+            </div>
+            <div id="leafletMap" class="w-full h-96 rounded-xl border border-slate-800 z-10 bg-slate-950"></div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeMapModal()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">Apply & Close</button>
+            </div>
         </div>
-    </footer>
+    </div>
 
-    <!-- Application Logic -->
+    <!-- JavaScript Application Logic -->
     <script>
         let allRecords = [];
         let filteredRecords = [];
-        let currentPage = 1;
-        let pageSize = 50;
+        let selectedAppTypes = new Set();
+        let distinctAppTypesList = [];
 
-        // Sorting & Filtering State
+        // Sorting & Pagination
         let currentSortColumn = 'orderDate';
         let currentSortDirection = 'desc';
-        let selectedAppTypes = new Set();
-        let allUniqueAppTypes = [];
+        let currentPage = 1;
+        let pageSize = 25;
 
-        // DOM Elements
-        const searchInput = document.getElementById('searchInput');
-        const resetBtn = document.getElementById('resetBtn');
-        const pageSizeSelect = document.getElementById('pageSizeSelect');
-        const tableBody = document.getElementById('tableBody');
-        const matchCount = document.getElementById('match-count');
-        const recordCountBadge = document.getElementById('record-count-badge');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const paginationInfo = document.getElementById('pagination-info');
+        // Map State
+        let map = null;
+        let centerMarker = null;
+        let radiusCircle = null;
+        let searchCenter = { lat: 46.0833, lng: -79.4333 };
+        let searchRadiusKm = 50;
+        let radiusFilterActive = false;
 
-        // Stat elements
-        const statTotal = document.getElementById('stat-total');
-        const statAddresses = document.getElementById('stat-addresses');
-        const statLandlords = document.getElementById('stat-landlords');
-        const statDate = document.getElementById('stat-date');
+        window.addEventListener('DOMContentLoaded', loadData);
 
-        // Auto-load default ltb_orders.json if available
-        async function loadDefaultData() {
+        async function loadData() {
             try {
                 const response = await fetch('../data/ltb_orders.json');
-                if (!response.ok) throw new Error('Not found locally');
-                const data = await response.json();
-                initDataset(data, 'ltb_orders.json');
+                if (!response.ok) throw new Error('Failed to load ltb_orders.json');
+                allRecords = await response.json();
             } catch (err) {
-                console.info('Default ltb_orders.json not auto-detected. Use the Load JSON File button.');
-                recordCountBadge.textContent = "Awaiting JSON upload";
-                recordCountBadge.parentElement.className = "text-xs text-amber-400 bg-amber-950/50 border border-amber-900/50 px-3 py-1.5 rounded-lg flex items-center gap-2";
-                recordCountBadge.previousElementSibling.className = "w-2 h-2 rounded-full bg-amber-400";
+                console.warn('Fallback sample data used', err);
+                allRecords = [{
+                    id: "sample-1", fileNumber: "TSL-12345-24", address: "100 Yonge St, Toronto, ON", city: "Toronto",
+                    appType: "L1; L2", orderDate: "2026-01-15", landlordName: "Maple Leaf Properties Inc",
+                    tenantName: "John Smith", pdfUrl: "#", lat: 43.6532, lng: -79.3832
+                }];
             }
-        }
 
-        function initDataset(data, sourceName) {
-            if (!Array.isArray(data)) {
-                alert('JSON root must be an array of records.');
-                return;
-            }
-            allRecords = data;
+            document.getElementById('statTotal').textContent = allRecords.length.toLocaleString();
 
-            recordCountBadge.textContent = `${allRecords.length.toLocaleString()} records loaded`;
-            recordCountBadge.parentElement.className = "text-xs text-emerald-400 bg-emerald-950/50 border border-emerald-900/50 px-3 py-1.5 rounded-lg flex items-center gap-2";
-            recordCountBadge.previousElementSibling.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-
-            updateStatistics();
-            buildUniqueAppTypes(allRecords);
-            applyFilters();
-        }
-
-        function updateStatistics() {
-            statTotal.textContent = allRecords.length.toLocaleString();
-
-            const uniqueAddrs = new Set(allRecords.map(r => r.address).filter(a => a && a !== 'N/A')).size;
-            statAddresses.textContent = uniqueAddrs.toLocaleString();
-
-            const uniqueLandlords = new Set(allRecords.map(r => r.landlordName).filter(l => l && l !== 'N/A')).size;
-            statLandlords.textContent = uniqueLandlords.toLocaleString();
-
-            const dates = allRecords.map(r => r.orderDate).filter(d => d && d !== 'N/A').sort();
-            if (dates.length > 0) {
-                statDate.textContent = dates[dates.length - 1];
-            }
-        }
-
-        // --- Application Type Split Checkbox Logic ---
-        function buildUniqueAppTypes(dataset) {
-            const typesSet = new Set();
-            dataset.forEach(item => {
+            const appTypeSet = new Set();
+            allRecords.forEach(item => {
                 if (item.appType && item.appType !== 'N/A') {
-                    const parts = item.appType.split(';').map(s => s.trim());
-                    parts.forEach(t => { if (t) typesSet.add(t); });
+                    item.appType.split(';').forEach(t => {
+                        const cleanT = t.trim();
+                        if (cleanT) appTypeSet.add(cleanT);
+                    });
                 }
             });
-            allUniqueAppTypes = Array.from(typesSet).sort();
-            selectedAppTypes = new Set(allUniqueAppTypes);
+            distinctAppTypesList = Array.from(appTypeSet).sort();
+            selectedAppTypes = new Set(distinctAppTypesList);
+
             renderAppTypeCheckboxes();
+            applyFilters();
         }
 
+        function switchView(view) {
+            const btnOrders = document.getElementById('tabOrders');
+            const btnTenants = document.getElementById('tabTenants');
+            const viewOrders = document.getElementById('viewOrders');
+            const viewTenants = document.getElementById('viewTenants');
+
+            if (view === 'orders') {
+                viewOrders.classList.remove('hidden');
+                viewTenants.classList.add('hidden');
+                btnOrders.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-2";
+                btnTenants.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+            } else {
+                viewOrders.classList.add('hidden');
+                viewTenants.classList.remove('hidden');
+                btnTenants.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center gap-2";
+                btnOrders.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
+            }
+        }
+
+        // Helper to parse, deduplicate, and clean names array from textarea
+        function parseCleanTenantNames() {
+            const rawText = document.getElementById('tenantBatchInput').value;
+            const lines = rawText.split(/[\n,]+/);
+            
+            const uniqueNames = [];
+            const seenLower = new Set();
+
+            lines.forEach(line => {
+                const cleaned = line.trim().replace(/\s+/g, ' '); // normalize spaces
+                if (cleaned.length > 0) {
+                    const lower = cleaned.toLowerCase();
+                    if (!seenLower.has(lower)) {
+                        seenLower.add(lower);
+                        uniqueNames.push(cleaned);
+                    }
+                }
+            });
+
+            return uniqueNames;
+        }
+
+        function cleanAndFormatInput() {
+            const cleanNames = parseCleanTenantNames();
+            document.getElementById('tenantBatchInput').value = cleanNames.join('\n');
+        }
+
+        // ================= TENANT SCREENING AGGREGATION LOGIC =================
+        function runTenantScreening() {
+            const tenantNames = parseCleanTenantNames();
+            
+            // Auto update input text box with cleaned deduplicated list
+            document.getElementById('tenantBatchInput').value = tenantNames.join('\n');
+
+            const container = document.getElementById('tenantAggregateContainer');
+            container.innerHTML = '';
+
+            if (tenantNames.length === 0) {
+                container.innerHTML = `<div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 italic text-xs">Please enter at least one tenant name above to screen.</div>`;
+                document.getElementById('metricScreenedCount').textContent = "0";
+                document.getElementById('metricClearCount').textContent = "0";
+                document.getElementById('metricFlaggedCount').textContent = "0";
+                return;
+            }
+
+            let clearCount = 0;
+            let flaggedCount = 0;
+
+            tenantNames.forEach(queryName => {
+                const lowerName = queryName.toLowerCase();
+                const matches = allRecords.filter(r => (r.tenantName || '').toLowerCase().includes(lowerName));
+
+                if (matches.length === 0) {
+                    clearCount++;
+                    const row = document.createElement('div');
+                    row.className = "bg-emerald-950/20 border border-emerald-800/40 rounded-2xl p-4 flex items-center justify-between transition hover:border-emerald-700/50";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-lg">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                                    ${escapeHtml(queryName)}
+                                    <span class="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-[10px] font-semibold">CLEAR</span>
+                                </h4>
+                                <p class="text-xs text-emerald-400/80 mt-0.5">No public LTB order records found on file.</p>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                } else {
+                    flaggedCount++;
+                    const appBreakdown = {};
+                    matches.forEach(m => {
+                        const types = (m.appType || 'N/A').split(';').map(t => t.trim());
+                        types.forEach(t => appBreakdown[t] = (appBreakdown[t] || 0) + 1);
+                    });
+
+                    const appBadges = Object.keys(appBreakdown).map(k => `<span class="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded font-mono text-[10px]">${k} (${appBreakdown[k]})</span>`).join(' ');
+
+                    const row = document.createElement('div');
+                    row.className = "bg-amber-950/20 border border-amber-800/40 rounded-2xl p-5 space-y-3 transition hover:border-amber-700/50";
+                    
+                    let casesListHtml = matches.map(m => `
+                        <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                            <div class="space-y-0.5">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-mono font-bold text-indigo-400">${escapeHtml(m.fileNumber)}</span>
+                                    <span class="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px] font-mono">${escapeHtml(m.appType)}</span>
+                                    <span class="text-slate-500 text-[10px] font-mono">${escapeHtml(m.orderDate)}</span>
+                                </div>
+                                <div class="text-slate-300">${escapeHtml(m.address)}</div>
+                                <div class="text-[11px] text-slate-400">Landlord: <strong class="text-slate-200">${escapeHtml(m.landlordName)}</strong></div>
+                            </div>
+                            <div>
+                                ${m.pdfUrl && m.pdfUrl !== '#' ? `<a href="${m.pdfUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[11px] font-medium inline-flex items-center gap-1.5 transition"><i class="fa-solid fa-file-pdf"></i> View Order</a>` : '<span class="text-slate-600">No PDF</span>'}
+                            </div>
+                        </div>
+                    `).join('');
+
+                    row.innerHTML = `
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-800/30 pb-3">
+                            <div class="flex items-center gap-3.5">
+                                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-lg">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                                        ${escapeHtml(queryName)}
+                                        <span class="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-full text-[10px] font-semibold">FLAGGED - ${matches.length} RECORD(S)</span>
+                                    </h4>
+                                    <div class="flex items-center gap-2 mt-1">${appBadges}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-1">
+                            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Matched Public LTB Orders:</p>
+                            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">${casesListHtml}</div>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                }
+            });
+
+            document.getElementById('metricScreenedCount').textContent = tenantNames.length;
+            document.getElementById('metricClearCount').textContent = clearCount;
+            document.getElementById('metricFlaggedCount').textContent = flaggedCount;
+        }
+
+        // ================= EXPLORER FILTERS & TABLE LOGIC =================
         function renderAppTypeCheckboxes() {
-            const container = document.getElementById('appTypeCheckboxList');
-            if (!container) return;
-
-            container.innerHTML = allUniqueAppTypes.map(type => `
-                <label class="flex items-center space-x-2 text-xs text-slate-300 hover:bg-slate-800 p-1.5 rounded cursor-pointer select-none">
-                    <input type="checkbox" value="${type}" ${selectedAppTypes.has(type) ? 'checked' : ''} onchange="handleAppTypeToggle(this)" class="rounded border-slate-700 bg-slate-950 text-indigo-600 focus:ring-indigo-500 h-4 w-4" />
-                    <span>${type}</span>
-                </label>
-            `).join('');
-
-            updateAppTypeButtonLabel();
+            const container = document.getElementById('appTypeCheckboxes');
+            container.innerHTML = '';
+            distinctAppTypesList.forEach(type => {
+                const isChecked = selectedAppTypes.has(type);
+                const label = document.createElement('label');
+                label.className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs cursor-pointer transition select-none ${isChecked ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-300 font-medium' : 'bg-slate-950 border-slate-800 text-slate-400'}`;
+                label.innerHTML = `<input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} onchange="handleAppTypeCheckboxChange(this)" class="rounded border-slate-700 text-indigo-600 focus:ring-0 w-3 h-3"><span>${type}</span>`;
+                container.appendChild(label);
+            });
         }
 
-        function handleAppTypeToggle(checkbox) {
-            if (checkbox.checked) {
-                selectedAppTypes.add(checkbox.value);
-            } else {
-                selectedAppTypes.delete(checkbox.value);
-            }
-            updateAppTypeButtonLabel();
+        function handleAppTypeCheckboxChange(checkbox) {
+            if (checkbox.checked) selectedAppTypes.add(checkbox.value);
+            else selectedAppTypes.delete(checkbox.value);
             applyFilters();
+            renderAppTypeCheckboxes();
         }
 
-        function selectAllTypes(shouldSelectAll) {
-            if (shouldSelectAll) {
-                selectedAppTypes = new Set(allUniqueAppTypes);
-            } else {
-                selectedAppTypes.clear();
-            }
+        function toggleAllAppTypes(select) {
+            selectedAppTypes = select ? new Set(distinctAppTypesList) : new Set();
             renderAppTypeCheckboxes();
             applyFilters();
         }
 
-        function updateAppTypeButtonLabel() {
-            const label = document.getElementById('appTypeDropdownLabel');
-            if (selectedAppTypes.size === 0) {
-                label.innerText = 'None Selected';
-            } else if (selectedAppTypes.size === allUniqueAppTypes.length) {
-                label.innerText = 'All Types Selected';
-            } else {
-                label.innerText = `${selectedAppTypes.size} Types Selected`;
-            }
+        function applyFilters() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            filteredRecords = allRecords.filter(item => {
+                let typeMatch = false;
+                if (selectedAppTypes.size === 0) typeMatch = false;
+                else if (!item.appType || item.appType === 'N/A') typeMatch = false;
+                else {
+                    const rowTypes = item.appType.split(';').map(s => s.trim());
+                    typeMatch = rowTypes.some(t => selectedAppTypes.has(t));
+                }
+                if (!typeMatch) return false;
+
+                if (radiusFilterActive) {
+                    if (!item.lat || !item.lng || (item.lat === 0.0 && item.lng === 0.0)) return false;
+                    const dist = calculateDistance(searchCenter.lat, searchCenter.lng, item.lat, item.lng);
+                    if (dist > searchRadiusKm) return false;
+                }
+
+                if (!query) return true;
+                const fileNum = (item.fileNumber || '').toLowerCase();
+                const addr = (item.address || '').toLowerCase();
+                const tenant = (item.tenantName || '').toLowerCase();
+                const landlord = (item.landlordName || '').toLowerCase();
+
+                return fileNum.includes(query) || addr.includes(query) || tenant.includes(query) || landlord.includes(query);
+            });
+
+            document.getElementById('statFiltered').textContent = filteredRecords.length.toLocaleString();
+            const geocodedCount = allRecords.filter(i => i.lat && i.lng && (i.lat !== 0.0 || i.lng !== 0.0)).length;
+            document.getElementById('statGeocoded').textContent = geocodedCount.toLocaleString();
+
+            sortData();
+            currentPage = 1;
+            renderTable();
         }
 
-        function toggleAppTypeDropdown() {
-            const menu = document.getElementById('appTypeMenu');
-            menu.classList.toggle('hidden');
-        }
-
-        document.addEventListener('click', (e) => {
-            const container = document.getElementById('appTypeDropdownContainer');
-            if (container && !container.contains(e.target)) {
-                document.getElementById('appTypeMenu')?.classList.add('hidden');
-            }
-        });
-
-        // --- Sorting Logic ---
-// --- Sorting Logic ---
         function handleSort(column) {
             if (currentSortColumn === column) {
                 currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
             } else {
                 currentSortColumn = column;
-                // Default orderDate to descending (newest first), others ascending
-                currentSortDirection = column === 'orderDate' ? 'desc' : 'asc';
+                currentSortDirection = 'asc';
             }
-            updateSortIndicators();
-            renderTable(); // Triggers sortData() inside renderTable()
-        }
-
-        function updateSortIndicators() {
-            const columns = ['orderDate', 'fileNumber', 'address', 'landlordName', 'appType'];
-            columns.forEach(col => {
+            ['fileNumber', 'address', 'appType', 'landlordName', 'tenantName', 'orderDate'].forEach(col => {
                 const el = document.getElementById(`sort-${col}`);
-                if (el) el.innerText = '';
+                if (el) el.textContent = '';
             });
-            const activeEl = document.getElementById(`sort-${currentSortColumn}`);
-            if (activeEl) {
-                activeEl.innerText = currentSortDirection === 'asc' ? '▲' : '▼';
-            }
+            const activeEl = document.getElementById(`sort-${column}`);
+            if (activeEl) activeEl.textContent = currentSortDirection === 'asc' ? ' ▲' : ' ▼';
+            sortData();
+            renderTable();
         }
 
-        function sortData(data) {
-            return data.sort((a, b) => {
-                let valA = a[currentSortColumn] ?? '';
-                let valB = b[currentSortColumn] ?? '';
-
-                // Handle string normalisation for case-insensitive sorting
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
-
-                // Treat 'n/a' or empty strings as low priority
-                if (valA === 'n/a' || valA === '') valA = currentSortDirection === 'asc' ? 'zzz' : 'aaa';
-                if (valB === 'n/a' || valB === '') valB = currentSortDirection === 'asc' ? 'zzz' : 'aaa';
-
+        function sortData() {
+            filteredRecords.sort((a, b) => {
+                let valA = (a[currentSortColumn] ?? '').toString().toLowerCase();
+                let valB = (b[currentSortColumn] ?? '').toString().toLowerCase();
                 if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
                 if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
                 return 0;
             });
         }
 
-        // --- Filtering & Rendering ---
-        function applyFilters() {
-            const query = searchInput.value.toLowerCase().trim();
-
-            filteredRecords = allRecords.filter(item => {
-                // Checkbox split filtering
-                let typeMatch = false;
-                if (selectedAppTypes.size > 0 && item.appType && item.appType !== 'N/A') {
-                    const rowTypes = item.appType.split(';').map(s => s.trim());
-                    typeMatch = rowTypes.some(t => selectedAppTypes.has(t));
-                }
-                if (!typeMatch) return false;
-
-                // Text search filtering
-                if (!query) return true;
-                const fileNum = (item.fileNumber || '').toLowerCase();
-                const addr = (item.address || '').toLowerCase();
-                const tenant = (item.tenantName || '').toLowerCase();
-                const landlord = (item.landlordName || '').toLowerCase();
-
-                return fileNum.includes(query) || addr.includes(query) || tenant.includes(query) || landlord.includes(query);
-            });
-
-            currentPage = 1;
-            renderTable();
-        }
-
-        searchInput.addEventListener('input', applyFilters);
-
-        resetBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            selectAllTypes(true);
-        });
-
-        pageSizeSelect.addEventListener('change', (e) => {
-            pageSize = parseInt(e.target.value);
-            currentPage = 1;
-            renderTable();
-        });
-
-        prevBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-            }
-        });
-
-        nextBtn.addEventListener('click', () => {
-            const maxPage = Math.ceil(filteredRecords.length / pageSize) || 1;
-            if (currentPage < maxPage) {
-                currentPage++;
-                renderTable();
-            }
-        });
-
         function renderTable() {
-            // Sort the filtered records BEFORE slicing for pagination
-            sortData(filteredRecords);
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
 
-            matchCount.textContent = `Showing ${filteredRecords.length.toLocaleString()} matching records`;
+            const startIndex = (currentPage - 1) * pageSize;
+            const pageItems = filteredRecords.slice(startIndex, startIndex + pageSize);
 
-            const maxPage = Math.ceil(filteredRecords.length / pageSize) || 1;
-            if (currentPage > maxPage) currentPage = maxPage;
-
-            paginationInfo.textContent = `Page ${currentPage} of ${maxPage}`;
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= maxPage;
-
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            const pageData = filteredRecords.slice(start, end);
-
-            if (pageData.length === 0) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-16 text-slate-500">
-                            <div class="flex flex-col items-center justify-center space-y-2">
-                                <i class="fa-solid fa-folder-open text-2xl text-slate-600"></i>
-                                <p class="font-medium text-slate-400">No matching LTB orders found.</p>
-                                <p class="text-xs text-slate-500">Try adjusting your search query or filters.</p>
-                            </div>
-                        </td>
-                    </tr>
-                `;
+            if (pageItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No matching LTB orders found.</td></tr>`;
+                updatePaginationControls();
                 return;
             }
 
-            tableBody.innerHTML = pageData.map(r => `
-                <tr class="hover:bg-slate-800/40 transition group">
-                    <td class="py-3 px-4 font-mono text-xs text-slate-400 whitespace-nowrap">${escapeHtml(r.orderDate)}</td>
-                    <td class="py-3 px-4 font-mono text-xs font-semibold text-indigo-400 whitespace-nowrap">${escapeHtml(r.fileNumber)}</td>
-                    <td class="py-3 px-4 text-slate-200">
-                        <div class="font-medium max-w-xs truncate" title="${escapeHtml(r.address)}">${escapeHtml(r.address)}</div>
+            pageItems.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition border-b border-slate-800/40';
+                const pdfLink = item.pdfUrl && item.pdfUrl !== '#' 
+                    ? `<a href="${item.pdfUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg font-medium inline-flex items-center gap-1.5 transition"><i class="fa-solid fa-file-pdf"></i> PDF</a>`
+                    : `<span class="text-slate-600">N/A</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-medium text-indigo-300">${escapeHtml(item.fileNumber)}</td>
+                    <td class="py-3 px-4 max-w-xs truncate" title="${escapeHtml(item.address)}">
+                        <div class="font-medium text-slate-200">${escapeHtml(item.address)}</div>
+                        <div class="text-[10px] text-slate-500 font-mono">${escapeHtml(item.city || '')}</div>
                     </td>
-                    <td class="py-3 px-4">
-                        <div class="text-xs space-y-0.5">
-                            <div class="text-slate-300 font-medium truncate max-w-xs" title="Landlord: ${escapeHtml(r.landlordName)}"><span class="text-slate-500 font-normal">L:</span> ${escapeHtml(r.landlordName)}</div>
-                            <div class="text-slate-400 truncate max-w-xs" title="Tenant: ${escapeHtml(r.tenantName)}"><span class="text-slate-500 font-normal">T:</span> ${escapeHtml(r.tenantName)}</div>
-                        </div>
-                    </td>
-                    <td class="py-3 px-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
-                            ${escapeHtml(r.appType)}
-                        </span>
-                    </td>
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
-                        ${r.pdfUrl && r.pdfUrl !== '#' ? `
-                            <a href="${escapeHtml(r.pdfUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-medium border border-indigo-500/30 transition shadow-sm">
-                                <i class="fa-solid fa-file-pdf"></i> PDF Order
-                            </a>
-                        ` : `
-                            <span class="text-xs text-slate-600 italic">Not available</span>
-                        `}
-                    </td>
-                </tr>
-            `).join('');
-        }
-        
-        // --- Filtering & Rendering ---
-        function applyFilters() {
-            const query = searchInput.value.toLowerCase().trim();
-
-            filteredRecords = allRecords.filter(item => {
-                // Checkbox split filtering
-                let typeMatch = false;
-                if (selectedAppTypes.size > 0 && item.appType && item.appType !== 'N/A') {
-                    const rowTypes = item.appType.split(';').map(s => s.trim());
-                    typeMatch = rowTypes.some(t => selectedAppTypes.has(t));
-                }
-                if (!typeMatch) return false;
-
-                // Text search filtering
-                if (!query) return true;
-                const fileNum = (item.fileNumber || '').toLowerCase();
-                const addr = (item.address || '').toLowerCase();
-                const tenant = (item.tenantName || '').toLowerCase();
-                const landlord = (item.landlordName || '').toLowerCase();
-
-                return fileNum.includes(query) || addr.includes(query) || tenant.includes(query) || landlord.includes(query);
-            });
-
-            filteredRecords = sortData(filteredRecords);
-            currentPage = 1;
-            renderTable();
-        }
-
-        searchInput.addEventListener('input', applyFilters);
-
-        resetBtn.addEventListener('click', () => {
-            searchInput.value = '';
-            selectAllTypes(true);
-        });
-
-        pageSizeSelect.addEventListener('change', (e) => {
-            pageSize = parseInt(e.target.value);
-            currentPage = 1;
-            renderTable();
-        });
-
-        prevBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                renderTable();
-            }
-        });
-
-        nextBtn.addEventListener('click', () => {
-            const maxPage = Math.ceil(filteredRecords.length / pageSize) || 1;
-            if (currentPage < maxPage) {
-                currentPage++;
-                renderTable();
-            }
-        });
-
-        function renderTable() {
-            matchCount.textContent = `Showing ${filteredRecords.length.toLocaleString()} matching records`;
-
-            const maxPage = Math.ceil(filteredRecords.length / pageSize) || 1;
-            if (currentPage > maxPage) currentPage = maxPage;
-
-            paginationInfo.textContent = `Page ${currentPage} of ${maxPage}`;
-            prevBtn.disabled = currentPage <= 1;
-            nextBtn.disabled = currentPage >= maxPage;
-
-            const start = (currentPage - 1) * pageSize;
-            const end = start + pageSize;
-            const pageData = filteredRecords.slice(start, end);
-
-            if (pageData.length === 0) {
-                tableBody.innerHTML = `
-                    <tr>
-                        <td colspan="6" class="text-center py-16 text-slate-500">
-                            <div class="flex flex-col items-center justify-center space-y-2">
-                                <i class="fa-solid fa-folder-open text-2xl text-slate-600"></i>
-                                <p class="font-medium text-slate-400">No matching LTB orders found.</p>
-                                <p class="text-xs text-slate-500">Try adjusting your search query or filters.</p>
-                            </div>
-                        </td>
-                    </tr>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-indigo-400">${escapeHtml(item.appType)}</span></td>
+                    <td class="py-3 px-4 max-w-[180px] truncate text-slate-300" title="${escapeHtml(item.landlordName)}">${escapeHtml(item.landlordName)}</td>
+                    <td class="py-3 px-4 max-w-[180px] truncate text-slate-300" title="${escapeHtml(item.tenantName)}">${escapeHtml(item.tenantName)}</td>
+                    <td class="py-3 px-4 font-mono text-slate-400 whitespace-nowrap">${escapeHtml(item.orderDate)}</td>
+                    <td class="py-3 px-4 text-center">${pdfLink}</td>
                 `;
-                return;
-            }
+                tbody.appendChild(tr);
+            });
+            updatePaginationControls();
+        }
 
-            tableBody.innerHTML = pageData.map(r => `
-                <tr class="hover:bg-slate-800/40 transition group">
-                    <td class="py-3 px-4 font-mono text-xs text-slate-400 whitespace-nowrap">${escapeHtml(r.orderDate)}</td>
-                    <td class="py-3 px-4 font-mono text-xs font-semibold text-indigo-400 whitespace-nowrap">${escapeHtml(r.fileNumber)}</td>
-                    <td class="py-3 px-4 text-slate-200">
-                        <div class="font-medium max-w-xs truncate" title="${escapeHtml(r.address)}">${escapeHtml(r.address)}</div>
-                    </td>
-                    <td class="py-3 px-4">
-                        <div class="text-xs space-y-0.5">
-                            <div class="text-slate-300 font-medium truncate max-w-xs" title="Landlord: ${escapeHtml(r.landlordName)}"><span class="text-slate-500 font-normal">L:</span> ${escapeHtml(r.landlordName)}</div>
-                            <div class="text-slate-400 truncate max-w-xs" title="Tenant: ${escapeHtml(r.tenantName)}"><span class="text-slate-500 font-normal">T:</span> ${escapeHtml(r.tenantName)}</div>
-                        </div>
-                    </td>
-                    <td class="py-3 px-4 whitespace-nowrap">
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700">
-                            ${escapeHtml(r.appType)}
-                        </span>
-                    </td>
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
-                        ${r.pdfUrl && r.pdfUrl !== '#' ? `
-                            <a href="${escapeHtml(r.pdfUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 text-xs font-medium border border-indigo-500/30 transition shadow-sm">
-                                <i class="fa-solid fa-file-pdf"></i> PDF Order
-                            </a>
-                        ` : `
-                            <span class="text-xs text-slate-600 italic">Not available</span>
-                        `}
-                    </td>
-                </tr>
-            `).join('');
+        function updatePaginationControls() {
+            const total = filteredRecords.length;
+            const totalPages = Math.ceil(total / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+
+            document.getElementById('paginationInfo').textContent = `Showing ${start} to ${end} of ${total.toLocaleString()} entries`;
+            document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
+        function nextPage() { if (currentPage < Math.ceil(filteredRecords.length / pageSize)) { currentPage++; renderTable(); } }
+
+        // ================= MAP MODAL LOGIC =================
+        function openMapModal() {
+            document.getElementById('mapModal').classList.remove('hidden');
+            if (!map) {
+                map = L.map('leafletMap').setView([searchCenter.lat, searchCenter.lng], 8);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+
+                updateMapCenter(searchCenter.lat, searchCenter.lng);
+                map.on('click', e => {
+                    updateMapCenter(e.latlng.lat, e.latlng.lng);
+                    radiusFilterActive = true;
+                    document.getElementById('radiusBadge').classList.remove('hidden');
+                    document.getElementById('radiusBadge').classList.add('flex');
+                    applyFilters();
+                });
+            } else {
+                map.invalidateSize();
+            }
+        }
+
+        function closeMapModal() { document.getElementById('mapModal').classList.add('hidden'); }
+
+        function updateMapCenter(lat, lng) {
+            searchCenter = { lat, lng };
+            if (centerMarker) map.removeLayer(centerMarker);
+            if (radiusCircle) map.removeLayer(radiusCircle);
+
+            centerMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            centerMarker.on('dragend', e => {
+                const pos = e.target.getLatLng();
+                searchCenter = { lat: pos.lat, lng: pos.lng };
+                radiusFilterActive = true;
+                document.getElementById('radiusBadge').classList.remove('hidden');
+                document.getElementById('radiusBadge').classList.add('flex');
+                updateRadiusCircle();
+                applyFilters();
+            });
+            updateRadiusCircle();
+        }
+
+        function updateRadiusCircle() {
+            if (radiusCircle) map.removeLayer(radiusCircle);
+            radiusCircle = L.circle([searchCenter.lat, searchCenter.lng], {
+                radius: searchRadiusKm * 1000, color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.15
+            }).addTo(map);
+        }
+
+        function updateRadius(val) {
+            searchRadiusKm = parseInt(val);
+            document.getElementById('radiusLabel').textContent = `${searchRadiusKm} km`;
+            updateRadiusCircle();
+            if (radiusFilterActive) applyFilters();
+        }
+
+        function clearRadiusFilter() {
+            radiusFilterActive = false;
+            document.getElementById('radiusBadge').classList.remove('flex');
+            document.getElementById('radiusBadge').classList.add('hidden');
+            applyFilters();
+        }
+
+        function panToUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+                    updateMapCenter(pos.coords.latitude, pos.coords.longitude);
+                    radiusFilterActive = true;
+                    document.getElementById('radiusBadge').classList.remove('hidden');
+                    document.getElementById('radiusBadge').classList.add('flex');
+                    applyFilters();
+                });
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         }
 
         function escapeHtml(str) {
             if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         }
-
-        // Initialize on load
-        window.addEventListener('DOMContentLoaded', loadDefaultData);
     </script>
 </body>
-
 </html>
