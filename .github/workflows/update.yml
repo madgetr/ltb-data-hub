@@ -32,9 +32,18 @@ jobs:
         continue-on-error: true # Ensures workflow doesn't fail if an external lookup hiccup occurs
         run: python scripts/geocode_lookup.py
 
-      - name: Commit and Push if records changed
+      - name: Commit and Push Updated Cache & Data
         run: |
           git config --global user.name "LTB Data Bot"
-          git config --global user.email "action@github.com"
-          git add data/ltb_orders.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: automated monthly LTB data sync and backfill [skip ci]" && git push)
+          git config --global user.email "bot@users.noreply.github.com"
+          
+          # Stage both the cache and the orders file explicitly
+          git add data/city_coordinates_cache.csv data/ltb_orders.json || true
+          
+          # Check if there is actually anything staged to commit
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: auto-update geocoding cache and LTB orders [skip ci]"
+            git push
+          fi
