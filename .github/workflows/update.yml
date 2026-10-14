@@ -28,6 +28,10 @@ jobs:
       - name: Run Upsert ETL Script
         run: python scripts/fetch_data.py
 
+      - name: Run Geocode Lookup for Unknown Cities (Non-blocking)
+        continue-on-error: true # Ensures workflow doesn't fail if an external lookup hiccup occurs
+        run: python scripts/geocode_lookup.py
+
       - name: Commit and Push if records changed
         run: |
           git config --global user.name "LTB Data Bot"
