@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ontario LTB Intelligence & Tenant Screening Hub</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: { 850: '#171e2e', 900: '#0f172a', 950: '#090d16' },
+                        indigo: { 400: '#818cf8', 500: '#6366f1', 600: '#4f46e5' }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #090d16;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+
+        .leaflet-container {
+            background: #090d16 !important;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-slate-950 text-slate-100 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-30">
+        <div
+            class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+                <div class="flex items-center gap-2.5">
+                    <div
+                        class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 font-bold shadow-lg shadow-indigo-500/10 shrink-0">
+                        <i class="fa-solid fa-building-shield text-sm sm:text-base"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xs sm:text-base text-white tracking-wide leading-tight">Ontario LTB
+                            Intelligence</h1>
+                        <p class="text-[10px] sm:text-xs text-slate-400">Public Orders & Tenant Screening</p>
+                    </div>
+                </div>
+
+                <!-- Mobile Actions Top Right Container -->
+                <div class="flex sm:hidden items-center gap-2 shrink-0">
+                    <!-- Map Button Mobile -->
+                    <button type="button" onclick="openMapModal()"
+                        class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 font-medium rounded-xl border border-slate-700 flex items-center gap-1.5 transition text-xs">
+                        <i class="fa-solid fa-map-location-dot"></i> Map
+                    </button>
+                    <!-- Coffee Link Mobile -->
+                    <a href="https://buymeacoffee.com/madgetr" target="_blank"
+                        class="px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium rounded-xl border border-amber-500/30 flex items-center gap-1.5 transition text-xs">
+                        <i class="fa-solid fa-mug-hot"></i> Coffee
+                    </a>
+
+                </div>
+            </div>
+
+            <!-- View Mode Tabs -->
+            <div
+                class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 w-full sm:w-auto justify-center">
+                <button id="tabOrders" onclick="switchView('orders')"
+                    class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-table-list"></i> Orders
+                </button>
+                <button id="tabTenants" onclick="switchView('tenants')"
+                    class="flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-user-check"></i> Screening
+                </button>
+            </div>
+
+            <!-- Toolbar Actions Desktop / Coffee Link -->
+            <div class="hidden sm:flex items-center gap-3">
+                <button type="button" onclick="openMapModal()"
+                    class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 font-medium rounded-xl border border-slate-700 flex items-center gap-2 transition text-xs shadow-sm">
+                    <i class="fa-solid fa-map-location-dot"></i> Radius Map Search
+                </button>
+                <a href="https://buymeacoffee.com/madgetr" target="_blank"
+                    class="px-3.5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium rounded-xl border border-amber-500/30 flex items-center gap-2 transition text-xs shadow-sm">
+                    <i class="fa-solid fa-mug-hot"></i> Buy me a coffee
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 flex-grow w-full space-y-5">
+
+        <!-- ================= VIEW 1: ORDERS EXPLORER ================= -->
+        <div id="viewOrders" class="space-y-5">
+            <!-- Stats -->
+            <div class="grid grid-cols-3 gap-2 sm:gap-4">
+                <div
+                    class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Total
+                            Orders</p>
+                        <h3 id="statTotal" class="text-lg sm:text-2xl font-extrabold text-white mt-0.5">0</h3>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 items-center justify-center text-xl">
+                        <i class="fa-solid fa-database"></i>
+                    </div>
+                </div>
+                <div
+                    class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Filtered
+                        </p>
+                        <h3 id="statFiltered" class="text-lg sm:text-2xl font-extrabold text-indigo-400 mt-0.5">0</h3>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-12 h-12 rounded-xl bg-indigo-500/10 text-indigo-400 items-center justify-center text-xl">
+                        <i class="fa-solid fa-filter"></i>
+                    </div>
+                </div>
+                <div
+                    class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                    <div>
+                        <p class="text-[10px] sm:text-xs font-medium text-slate-400 uppercase tracking-wider">Geocoded
+                        </p>
+                        <h3 id="statGeocoded" class="text-lg sm:text-2xl font-extrabold text-emerald-400 mt-0.5">0</h3>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 items-center justify-center text-xl">
+                        <i class="fa-solid fa-location-dot"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toolbar & Checkboxes -->
+            <div
+                class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-sm space-y-3.5">
+                <div class="flex flex-col gap-3">
+                    <div class="relative w-full">
+                        <span
+                            class="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                        </span>
+                        <input type="text" id="searchInput" oninput="applyFilters()"
+                            placeholder="Search file number, address, tenant or landlord..."
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-3 sm:py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+                    </div>
+
+                    <div id="radiusBadge"
+                        class="hidden items-center justify-between px-3 py-2 bg-indigo-600/10 border border-indigo-500/30 text-indigo-300 rounded-xl text-xs">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-dot text-indigo-400 animate-pulse"></i>
+                            <span>Radius Filter Active</span>
+                        </div>
+                        <button onclick="clearRadiusFilter()" class="hover:text-white px-2 py-1"><i
+                                class="fa-solid fa-xmark"></i></button>
+                    </div>
+                </div>
+
+                <!-- Application Type Checkboxes -->
+                <div class="pt-3 border-t border-slate-800/80">
+                    <div class="flex items-center justify-between mb-2">
+                        <span
+                            class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fa-solid fa-tags text-indigo-400"></i> Application Types
+                        </span>
+                        <div class="flex items-center gap-3">
+                            <button onclick="toggleAllAppTypes(true)"
+                                class="text-xs text-indigo-400 hover:underline">Select All</button>
+                            <span class="text-slate-600">|</span>
+                            <button onclick="toggleAllAppTypes(false)"
+                                class="text-xs text-slate-400 hover:underline">Clear</button>
+                        </div>
+                    </div>
+                    <div id="appTypeCheckboxes" class="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1"></div>
+                </div>
+            </div>
+
+            <!-- Responsive Orders Display (Desktop Table / Mobile Cards) -->
+            <div
+                class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                <!-- Desktop Table View -->
+                <div class="hidden md:block overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr
+                                class="bg-slate-950/70 border-b border-slate-800 text-slate-400 font-semibold uppercase tracking-wider">
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('fileNumber')">File Number <span id="sort-fileNumber"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('address')">Address & City <span id="sort-address"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('appType')">App Type <span id="sort-appType"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('landlordName')">Landlord <span id="sort-landlordName"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('tenantName')">Tenant <span id="sort-tenantName"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 cursor-pointer hover:text-white select-none"
+                                    onclick="handleSort('orderDate')">Order Date <span id="sort-orderDate"
+                                        class="text-indigo-400"></span></th>
+                                <th class="py-3.5 px-4 text-center">Document</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody" class="divide-y divide-slate-800/60 text-slate-300"></tbody>
+                    </table>
+                </div>
+
+                <!-- Mobile Card List View -->
+                <div id="mobileCardList" class="md:hidden divide-y divide-slate-800/60">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Pagination Bar -->
+                <div
+                    class="bg-slate-950/40 border-t border-slate-800 p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                    <div id="paginationInfo" class="text-center sm:text-left">Showing 0 to 0 of 0 entries</div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                        <button onclick="prevPage()" id="prevBtn"
+                            class="flex-1 sm:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-xl transition font-medium">Previous</button>
+                        <span id="pageIndicator" class="px-2 py-1 font-mono text-indigo-400 text-center">1/1</span>
+                        <button onclick="nextPage()" id="nextBtn"
+                            class="flex-1 sm:flex-none px-3.5 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-xl transition font-medium">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ================= VIEW 2: TENANT AGGREGATION & SCREENING ================= -->
+        <div id="viewTenants" class="hidden space-y-5">
+            <!-- Screening Input Card -->
+            <div
+                class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm space-y-3.5">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-users-viewfinder text-indigo-400"></i> Batch Tenant Screening
+                        </h3>
+                        <p class="text-[11px] sm:text-xs text-slate-400 mt-0.5">
+                            Enter applicant names (one per line). Duplicates and blanks are automatically cleaned.
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto">
+                        <button onclick="cleanAndFormatInput()"
+                            class="flex-1 sm:flex-none px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-broom text-slate-400"></i> Clean
+                        </button>
+                        <button onclick="runTenantScreening()"
+                            class="flex-1 sm:flex-none px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition">
+                            <i class="fa-solid fa-magnifying-glass font-bold"></i> Screen
+                        </button>
+                    </div>
+                </div>
+                <textarea id="tenantBatchInput" rows="4"
+                    placeholder="Enter applicant names (e.g. John Smith, Jane Doe)..."
+                    class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition font-mono"></textarea>
+            </div>
+
+            <!-- Aggregate Status Overview Bar -->
+            <div id="screeningMetrics" class="grid grid-cols-3 gap-2 sm:gap-4">
+                <div
+                    class="bg-slate-900/80 border border-slate-800 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                    <div>
+                        <p class="text-[10px] sm:text-[11px] font-medium text-slate-400 uppercase">Screened</p>
+                        <h4 id="metricScreenedCount" class="text-base sm:text-xl font-bold text-white mt-0.5">0</h4>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-10 h-10 rounded-xl bg-slate-800 text-slate-300 items-center justify-center">
+                        <i class="fa-solid fa-user-group"></i>
+                    </div>
+                </div>
+                <div
+                    class="bg-emerald-950/20 border border-emerald-800/40 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                    <div>
+                        <p class="text-[10px] sm:text-[11px] font-medium text-emerald-400 uppercase">Clear</p>
+                        <h4 id="metricClearCount" class="text-base sm:text-xl font-bold text-emerald-300 mt-0.5">0</h4>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-400 items-center justify-center">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                </div>
+                <div
+                    class="bg-amber-950/20 border border-amber-800/40 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1">
+                    <div>
+                        <p class="text-[10px] sm:text-[11px] font-medium text-amber-400 uppercase">Flagged</p>
+                        <h4 id="metricFlaggedCount" class="text-base sm:text-xl font-bold text-amber-300 mt-0.5">0</h4>
+                    </div>
+                    <div
+                        class="hidden sm:flex w-10 h-10 rounded-xl bg-amber-500/10 text-amber-400 items-center justify-center">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aggregated Results List -->
+            <div id="tenantAggregateContainer" class="space-y-4">
+                <div
+                    class="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 italic text-xs">
+                    Paste applicant names into the box above and click "Screen" to generate aggregated results.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Radius Map Modal -->
+    <div id="mapModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4">
+        <div
+            class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-4 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-map-location-dot text-indigo-400"></i> Spatial Radius Search
+                </h3>
+                <button onclick="closeMapModal()" class="text-slate-400 hover:text-white p-2"><i
+                        class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <div
+                class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs text-slate-300">
+                <button onclick="panToUserLocation()"
+                    class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg flex items-center justify-center gap-1.5 shadow-sm">
+                    <i class="fa-solid fa-location-crosshairs"></i> Use My Location
+                </button>
+                <div class="flex items-center justify-between sm:justify-start gap-2">
+                    <span>Radius:</span>
+                    <input type="range" id="radiusSlider" min="5" max="250" step="5" value="50"
+                        oninput="updateRadius(this.value)" class="accent-indigo-500 w-32 sm:w-auto">
+                    <strong id="radiusLabel" class="text-indigo-400 font-mono">50 km</strong>
+                </div>
+                <button onclick="clearRadiusFilter()"
+                    class="px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-slate-300 font-medium text-center">Reset
+                    Radius</button>
+            </div>
+
+            <!-- Leaflet Map Container -->
+            <div id="leafletMap"
+                class="w-full h-72 sm:h-96 rounded-xl border border-slate-800 z-10 bg-slate-950 shrink-0"></div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeMapModal()"
+                    class="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold">Apply
+                    & Close</button>
+            </div>
+        </div>
+    </div>
+        <!-- Buy Me a Coffee Popup Notification -->
+        <div id="coffeePopup"
+            class="hidden fixed bottom-5 right-5 z-50 max-w-sm bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl animate-fade-in flex flex-col gap-3">
+            <div class="flex items-start justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div
+                        class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg shrink-0">
+                        <i class="fa-solid fa-mug-hot"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-white text-xs sm:text-sm">Finding this useful?</h4>
+                        <p class="text-[11px] text-slate-400 mt-0.5">Help support hosting & data maintenance costs!</p>
+                    </div>
+                </div>
+                <button onclick="closeCoffeePopup()" class="text-slate-400 hover:text-white p-1 text-xs"><i
+                        class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+                <a href="https://buymeacoffee.com/madgetr" target="_blank" onclick="closeCoffeePopup()"
+                    class="flex-1 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs text-center transition flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10">
+                    <i class="fa-solid fa-coffee"></i> Buy me a Coffee 
+                </a>
+                <button onclick="closeCoffeePopup()"
+                    class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium rounded-xl text-xs transition">Maybe
+                    Later</button>
+            </div>
+        </div>
+    <!-- JavaScript Application Logic -->
+    <script>
+        let allRecords = [];
+        let filteredRecords = [];
+        let selectedAppTypes = new Set();
+        let distinctAppTypesList = [];
+
+        // Sorting & Pagination
+        let currentSortColumn = 'orderDate';
+        let currentSortDirection = 'desc';
+        let currentPage = 1;
+        let pageSize = 25;
+
+        // Map State
+        let map = null;
+        let centerMarker = null;
+        let radiusCircle = null;
+        let searchCenter = { lat: 46.0833, lng: -79.4333 };
+        let searchRadiusKm = 50;
+        let radiusFilterActive = false;
+
+        // Trigger Buy Me a Coffee Popup after 45 seconds of page engagement
+        window.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            localStorage.removeItem('coffeePromptDismissed');
+            // Check if user already dismissed or clicked it before in this browser session
+            if (!localStorage.getItem('coffeePromptDismissed')) {
+                setTimeout(() => {
+                    const popup = document.getElementById('coffeePopup');
+                    if (popup) {
+                        popup.classList.remove('hidden');
+                    }
+                }, 45000); // 45 seconds
+            }
+        });
+
+        async function loadData() {
+            try {
+                const response = await fetch('./data/ltb_orders.json');
+                if (!response.ok) throw new Error('Failed to load ltb_orders.json');
+                allRecords = await response.json();
+            } catch (err) {
+                console.warn('Fallback sample data used', err);
+                allRecords = [{
+                    id: "sample-1", fileNumber: "TSL-12345-24", address: "100 Yonge St, Toronto, ON", city: "Toronto",
+                    appType: "L1; L2", orderDate: "2026-01-15", landlordName: "Maple Leaf Properties Inc",
+                    tenantName: "John Smith", pdfUrl: "#", lat: 43.6532, lng: -79.3832, maxAmount: 1250.00
+                }];
+            }
+
+            document.getElementById('statTotal').textContent = allRecords.length.toLocaleString();
+
+            const appTypeSet = new Set();
+            allRecords.forEach(item => {
+                if (item.appType && item.appType !== 'N/A') {
+                    item.appType.split(';').forEach(t => {
+                        const cleanT = t.trim();
+                        if (cleanT) appTypeSet.add(cleanT);
+                    });
+                }
+            });
+            distinctAppTypesList = Array.from(appTypeSet).sort();
+            selectedAppTypes = new Set(distinctAppTypesList);
+
+            renderAppTypeCheckboxes();
+            applyFilters();
+        }
+
+        function switchView(view) {
+            const btnOrders = document.getElementById('tabOrders');
+            const btnTenants = document.getElementById('tabTenants');
+            const viewOrders = document.getElementById('viewOrders');
+            const viewTenants = document.getElementById('viewTenants');
+
+            if (view === 'orders') {
+                viewOrders.classList.remove('hidden');
+                viewTenants.classList.add('hidden');
+                btnOrders.className = "flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center justify-center gap-1.5";
+                btnTenants.className = "flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+            } else {
+                viewOrders.classList.add('hidden');
+                viewTenants.classList.remove('hidden');
+                btnTenants.className = "flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 text-white transition flex items-center justify-center gap-1.5";
+                btnOrders.className = "flex-1 sm:flex-none px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+            }
+        }
+
+        function parseCleanTenantNames() {
+            const rawText = document.getElementById('tenantBatchInput').value;
+            const lines = rawText.split(/[\n,]+/);
+            const uniqueNames = [];
+            const seenLower = new Set();
+
+            lines.forEach(line => {
+                const cleaned = line.trim().replace(/\s+/g, ' ');
+                if (cleaned.length > 0) {
+                    const lower = cleaned.toLowerCase();
+                    if (!seenLower.has(lower)) {
+                        seenLower.add(lower);
+                        uniqueNames.push(cleaned);
+                    }
+                }
+            });
+            return uniqueNames;
+        }
+
+        function cleanAndFormatInput() {
+            const cleanNames = parseCleanTenantNames();
+            document.getElementById('tenantBatchInput').value = cleanNames.join('\n');
+        }
+
+        // ================= TENANT SCREENING AGGREGATION LOGIC =================
+        function runTenantScreening() {
+            const tenantNames = parseCleanTenantNames();
+            document.getElementById('tenantBatchInput').value = tenantNames.join('\n');
+
+            const container = document.getElementById('tenantAggregateContainer');
+            container.innerHTML = '';
+
+            if (tenantNames.length === 0) {
+                container.innerHTML = `<div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-8 text-center text-slate-500 italic text-xs">Please enter at least one tenant name above to screen.</div>`;
+                document.getElementById('metricScreenedCount').textContent = "0";
+                document.getElementById('metricClearCount').textContent = "0";
+                document.getElementById('metricFlaggedCount').textContent = "0";
+                return;
+            }
+
+            let clearCount = 0;
+            let flaggedCount = 0;
+
+            tenantNames.forEach(queryName => {
+                const lowerName = queryName.toLowerCase();
+                const matches = allRecords.filter(r => (r.tenantName || '').toLowerCase().includes(lowerName));
+
+                if (matches.length === 0) {
+                    clearCount++;
+                    const row = document.createElement('div');
+                    row.className = "bg-emerald-950/20 border border-emerald-800/40 rounded-2xl p-4 flex items-center justify-between transition hover:border-emerald-700/50";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3.5">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-base shrink-0">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-white text-xs sm:text-sm flex flex-wrap items-center gap-2">
+                                    ${escapeHtml(queryName)}
+                                    <span class="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-full text-[10px] font-semibold">CLEAR</span>
+                                </h4>
+                                <p class="text-[11px] text-emerald-400/80 mt-0.5">No public LTB order records found on file.</p>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                } else {
+                    flaggedCount++;
+                    const appBreakdown = {};
+                    let totalClaimAmount = 0;
+
+                    matches.forEach(m => {
+                        const types = (m.appType || 'N/A').split(';').map(t => t.trim());
+                        types.forEach(t => appBreakdown[t] = (appBreakdown[t] || 0) + 1);
+                        if (m.maxAmount && m.maxAmount > 0) {
+                            totalClaimAmount += m.maxAmount;
+                        }
+                    });
+
+                    const appBadges = Object.keys(appBreakdown).map(k => `<span class="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded font-mono text-[10px]">${k} (${appBreakdown[k]})</span>`).join(' ');
+                    const claimBadge = totalClaimAmount > 0
+                        ? `<span class="px-2 py-0.5 bg-red-500/10 border border-red-500/30 text-red-400 rounded font-mono text-[10px] font-bold">Total Claim/Arrears: $${totalClaimAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
+                        : '';
+
+                    const row = document.createElement('div');
+                    row.className = "bg-amber-950/20 border border-amber-800/40 rounded-2xl p-4 sm:p-5 space-y-3 transition hover:border-amber-700/50";
+
+                    let casesListHtml = matches.map(m => {
+                        const amountDisplay = m.maxAmount && m.maxAmount > 0
+                            ? `<span class="font-mono font-semibold text-red-400">$${m.maxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
+                            : `<span class="text-slate-500">N/A</span>`;
+
+                        return `
+                            <div class="bg-slate-950/80 border border-slate-800/80 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
+                                <div class="space-y-1">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="font-mono font-bold text-indigo-400">${escapeHtml(m.fileNumber)}</span>
+                                        <span class="px-1.5 py-0.5 bg-slate-800 text-slate-300 rounded text-[10px] font-mono">${escapeHtml(m.appType)}</span>
+                                        <span class="text-slate-500 text-[10px] font-mono">${escapeHtml(m.orderDate)}</span>
+                                    </div>
+                                    <div class="text-slate-300">${escapeHtml(m.address)}</div>
+                                    <div class="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                                        <span>Landlord: <strong class="text-slate-200">${escapeHtml(m.landlordName)}</strong></span>
+                                        <span>Claim: ${amountDisplay}</span>
+                                    </div>
+                                </div>
+                                <div class="self-end sm:self-center">
+                                    ${m.pdfUrl && m.pdfUrl !== '#' ? `<a href="${m.pdfUrl}" target="_blank" class="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-[11px] font-medium inline-flex items-center gap-1.5 transition"><i class="fa-solid fa-file-pdf"></i> PDF Order</a>` : '<span class="text-slate-600">No PDF</span>'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    row.innerHTML = `
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-800/30 pb-3">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 flex items-center justify-center font-bold text-base shrink-0">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-white text-xs sm:text-sm flex flex-wrap items-center gap-2">
+                                        ${escapeHtml(queryName)}
+                                        <span class="px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-full text-[10px] font-semibold">FLAGGED - ${matches.length} RECORD(S)</span>
+                                    </h4>
+                                    <div class="flex flex-wrap items-center gap-2 mt-1.5">${appBadges} ${claimBadge}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="space-y-2 pt-1">
+                            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Matched Public LTB Orders:</p>
+                            <div class="space-y-2 max-h-60 overflow-y-auto pr-1">${casesListHtml}</div>
+                        </div>
+                    `;
+                    container.appendChild(row);
+                }
+            });
+
+            document.getElementById('metricScreenedCount').textContent = tenantNames.length;
+            document.getElementById('metricClearCount').textContent = clearCount;
+            document.getElementById('metricFlaggedCount').textContent = flaggedCount;
+        }
+
+        // ================= EXPLORER FILTERS & TABLE LOGIC =================
+        function renderAppTypeCheckboxes() {
+            const container = document.getElementById('appTypeCheckboxes');
+            container.innerHTML = '';
+            distinctAppTypesList.forEach(type => {
+                const isChecked = selectedAppTypes.has(type);
+                const label = document.createElement('label');
+                label.className = `inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-xs cursor-pointer transition select-none ${isChecked ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-300 font-medium' : 'bg-slate-950 border-slate-800 text-slate-400'}`;
+                label.innerHTML = `<input type="checkbox" value="${type}" ${isChecked ? 'checked' : ''} onchange="handleAppTypeCheckboxChange(this)" class="rounded border-slate-700 text-indigo-600 focus:ring-0 w-3 h-3"><span>${type}</span>`;
+                container.appendChild(label);
+            });
+        }
+
+        function handleAppTypeCheckboxChange(checkbox) {
+            if (checkbox.checked) selectedAppTypes.add(checkbox.value);
+            else selectedAppTypes.delete(checkbox.value);
+            applyFilters();
+            renderAppTypeCheckboxes();
+        }
+
+        function toggleAllAppTypes(select) {
+            selectedAppTypes = select ? new Set(distinctAppTypesList) : new Set();
+            renderAppTypeCheckboxes();
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+
+            filteredRecords = allRecords.filter(item => {
+                let typeMatch = false;
+                if (selectedAppTypes.size === 0) typeMatch = false;
+                else if (!item.appType || item.appType === 'N/A') typeMatch = false;
+                else {
+                    const rowTypes = item.appType.split(';').map(s => s.trim());
+                    typeMatch = rowTypes.some(t => selectedAppTypes.has(t));
+                }
+                if (!typeMatch) return false;
+
+                if (radiusFilterActive) {
+                    if (!item.lat || !item.lng || (item.lat === 0.0 && item.lng === 0.0)) return false;
+                    const dist = calculateDistance(searchCenter.lat, searchCenter.lng, item.lat, item.lng);
+                    if (dist > searchRadiusKm) return false;
+                }
+
+                if (!query) return true;
+                const fileNum = (item.fileNumber || '').toLowerCase();
+                const addr = (item.address || '').toLowerCase();
+                const tenant = (item.tenantName || '').toLowerCase();
+                const landlord = (item.landlordName || '').toLowerCase();
+
+                return fileNum.includes(query) || addr.includes(query) || tenant.includes(query) || landlord.includes(query);
+            });
+
+            document.getElementById('statFiltered').textContent = filteredRecords.length.toLocaleString();
+            const geocodedCount = allRecords.filter(i => i.lat && i.lng && (i.lat !== 0.0 || i.lng !== 0.0)).length;
+            document.getElementById('statGeocoded').textContent = geocodedCount.toLocaleString();
+
+            sortData();
+            currentPage = 1;
+            renderTable();
+        }
+
+        function handleSort(column) {
+            if (currentSortColumn === column) {
+                currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSortColumn = column;
+                currentSortDirection = 'asc';
+            }
+            ['fileNumber', 'address', 'appType', 'landlordName', 'tenantName', 'orderDate'].forEach(col => {
+                const el = document.getElementById(`sort-${col}`);
+                if (el) el.textContent = '';
+            });
+            const activeEl = document.getElementById(`sort-${column}`);
+            if (activeEl) activeEl.textContent = currentSortDirection === 'asc' ? ' ▲' : ' ▼';
+            sortData();
+            renderTable();
+        }
+
+        function sortData() {
+            filteredRecords.sort((a, b) => {
+                let valA = (a[currentSortColumn] ?? '').toString().toLowerCase();
+                let valB = (b[currentSortColumn] ?? '').toString().toLowerCase();
+                if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+                if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            const mobileCardList = document.getElementById('mobileCardList');
+            tbody.innerHTML = '';
+            mobileCardList.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const pageItems = filteredRecords.slice(startIndex, startIndex + pageSize);
+
+            if (pageItems.length === 0) {
+                const emptyHtml = `<tr><td colspan="7" class="py-12 text-center text-slate-500 italic">No matching LTB orders found.</td></tr>`;
+                const emptyCardHtml = `<div class="p-8 text-center text-slate-500 italic text-xs">No matching LTB orders found.</div>`;
+                tbody.innerHTML = emptyHtml;
+                mobileCardList.innerHTML = emptyCardHtml;
+                updatePaginationControls();
+                return;
+            }
+
+            pageItems.forEach(item => {
+                // Desktop Table Row
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition border-b border-slate-800/40';
+                const pdfLink = item.pdfUrl && item.pdfUrl !== '#'
+                    ? `<a href="${item.pdfUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg font-medium inline-flex items-center gap-1.5 transition"><i class="fa-solid fa-file-pdf"></i> PDF</a>`
+                    : `<span class="text-slate-600">N/A</span>`;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-medium text-indigo-300">${escapeHtml(item.fileNumber)}</td>
+                    <td class="py-3 px-4 max-w-xs truncate" title="${escapeHtml(item.address)}">
+                        <div class="font-medium text-slate-200">${escapeHtml(item.address)}</div>
+                        <div class="text-[10px] text-slate-500 font-mono">${escapeHtml(item.city || '')}</div>
+                    </td>
+                    <td class="py-3 px-4"><span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-indigo-400">${escapeHtml(item.appType)}</span></td>
+                    <td class="py-3 px-4 max-w-[160px] truncate text-slate-300" title="${escapeHtml(item.landlordName)}">${escapeHtml(item.landlordName)}</td>
+                    <td class="py-3 px-4 max-w-[160px] truncate text-slate-300" title="${escapeHtml(item.tenantName)}">${escapeHtml(item.tenantName)}</td>
+                    <td class="py-3 px-4 font-mono text-slate-400 whitespace-nowrap">${escapeHtml(item.orderDate)}</td>
+                    <td class="py-3 px-4 text-center">${pdfLink}</td>
+                `;
+                tbody.appendChild(tr);
+
+                // Mobile Card Item
+                const card = document.createElement('div');
+                card.className = 'p-3.5 space-y-2 border-b border-slate-800/60 text-xs';
+                const amountDisplay = item.maxAmount && item.maxAmount > 0
+                    ? `<span class="font-mono font-semibold text-red-400">$${item.maxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`
+                    : `<span class="text-slate-500">N/A</span>`;
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="font-mono font-bold text-indigo-300">${escapeHtml(item.fileNumber)}</span>
+                        <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-[10px] font-mono text-indigo-400">${escapeHtml(item.appType)}</span>
+                    </div>
+                    <div class="text-slate-200 font-medium">${escapeHtml(item.address)} <span class="text-[10px] text-slate-500 font-mono">(${escapeHtml(item.city || '')})</span></div>
+                    <div class="grid grid-cols-2 gap-1 text-[11px] text-slate-400 pt-0.5">
+                        <div>Landlord: <strong class="text-slate-200 truncate block">${escapeHtml(item.landlordName)}</strong></div>
+                        <div>Tenant: <strong class="text-slate-200 truncate block">${escapeHtml(item.tenantName)}</strong></div>
+                    </div>
+                    <div class="flex items-center justify-between pt-1 border-t border-slate-800/40 text-[11px]">
+                        <span class="text-slate-400 font-mono">${escapeHtml(item.orderDate)} | Claim: ${amountDisplay}</span>
+                        ${item.pdfUrl && item.pdfUrl !== '#' ? `<a href="${item.pdfUrl}" target="_blank" class="px-2.5 py-1 bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 rounded-lg inline-flex items-center gap-1 font-medium"><i class="fa-solid fa-file-pdf"></i> PDF</a>` : ''}
+                    </div>
+                `;
+                mobileCardList.appendChild(card);
+            });
+            updatePaginationControls();
+        }
+
+        function updatePaginationControls() {
+            const total = filteredRecords.length;
+            const totalPages = Math.ceil(total / pageSize) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+
+            const start = total === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+            const end = Math.min(currentPage * pageSize, total);
+
+            document.getElementById('paginationInfo').textContent = `Showing ${start} to ${end} of ${total.toLocaleString()} entries`;
+            document.getElementById('pageIndicator').textContent = `${currentPage}/${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+
+        function prevPage() { if (currentPage > 1) { currentPage--; renderTable(); } }
+        function nextPage() { if (currentPage < Math.ceil(filteredRecords.length / pageSize)) { currentPage++; renderTable(); } }
+
+        // ================= MAP MODAL LOGIC =================
+        function openMapModal() {
+            document.getElementById('mapModal').classList.remove('hidden');
+            if (!map) {
+                map = L.map('leafletMap').setView([searchCenter.lat, searchCenter.lng], 8);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+
+                updateMapCenter(searchCenter.lat, searchCenter.lng);
+                map.on('click', e => {
+                    updateMapCenter(e.latlng.lat, e.latlng.lng);
+                    radiusFilterActive = true;
+                    document.getElementById('radiusBadge').classList.remove('hidden');
+                    document.getElementById('radiusBadge').classList.add('flex');
+                    applyFilters();
+                });
+            } else {
+                map.invalidateSize();
+            }
+        }
+
+        function closeMapModal() { document.getElementById('mapModal').classList.add('hidden'); }
+
+        function updateMapCenter(lat, lng) {
+            searchCenter = { lat, lng };
+            if (centerMarker) map.removeLayer(centerMarker);
+            if (radiusCircle) map.removeLayer(radiusCircle);
+
+            centerMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+            centerMarker.on('dragend', e => {
+                const pos = e.target.getLatLng();
+                searchCenter = { lat: pos.lat, lng: pos.lng };
+                radiusFilterActive = true;
+                document.getElementById('radiusBadge').classList.remove('hidden');
+                document.getElementById('radiusBadge').classList.add('flex');
+                updateRadiusCircle();
+                applyFilters();
+            });
+            updateRadiusCircle();
+        }
+
+        function updateRadiusCircle() {
+            if (radiusCircle) map.removeLayer(radiusCircle);
+            radiusCircle = L.circle([searchCenter.lat, searchCenter.lng], {
+                radius: searchRadiusKm * 1000, color: '#6366f1', fillColor: '#6366f1', fillOpacity: 0.15
+            }).addTo(map);
+        }
+
+        function updateRadius(val) {
+            searchRadiusKm = parseInt(val);
+            document.getElementById('radiusLabel').textContent = `${searchRadiusKm} km`;
+            updateRadiusCircle();
+            if (radiusFilterActive) applyFilters();
+        }
+
+        function clearRadiusFilter() {
+            radiusFilterActive = false;
+            document.getElementById('radiusBadge').classList.remove('flex');
+            document.getElementById('radiusBadge').classList.add('hidden');
+            applyFilters();
+        }
+
+        function panToUserLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(pos => {
+                    map.setView([pos.coords.latitude, pos.coords.longitude], 10);
+                    updateMapCenter(pos.coords.latitude, pos.coords.longitude);
+                    radiusFilterActive = true;
+                    document.getElementById('radiusBadge').classList.remove('hidden');
+                    document.getElementById('radiusBadge').classList.add('flex');
+                    applyFilters();
+                });
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+    
+        function closeCoffeePopup() {
+            const popup = document.getElementById('coffeePopup');
+            if (popup) {
+                popup.classList.add('hidden');
+            }
+            localStorage.setItem('coffeePromptDismissed', 'true');
+        }
+    </script>
+
+</body>
+
+</html>
